@@ -34,9 +34,33 @@ pub mod anchor_movie_review_program {
         Ok(())
     }
 
+    pub fn update_movie_review(
+        ctx: Context<UpdateMovieReview>,
+        title: String,
+        description: String,
+        rating: u8
+    ) -> Result<()> {
+        require!(rating >= MIN_RATING && rating <= MAX_RATING, MovieReviewError::InvalidRating);
+
+        require!(title.len() <= MAX_TITLE_LENGTH, MovieReviewError::TitleTooLong);
+
+        require!(description.len() <= MAX_DESCRIPTION_LENGTH, MovieReviewError::DescriptionTooLong);
+
+        msg!("Movie review account space reallocated");
+        msg!("Title: {}", title);
+        msg!("Description: {}", description);
+        msg!("Rating: {}", rating);
+
+        let movie_review = &mut ctx.accounts.movie_review;
+        movie_review.rating = rating;
+        movie_review.description = description;
+
+        Ok(())
+    }
+
 }
 
-[#account]
+#[account]
 #[derive(InitSpace)]
 pub struct MovieAccountState {
     pub reviewer: Pubkey,
@@ -61,7 +85,40 @@ pub struct AddMovieReview<'info> {
     pub movie_review: Account<'info, MovieAccountState>,
     #[account(mut)]
     pub initializer: Signer<'info>,
-    pub system_program : Program<'info, Ststem>
+    pub system_program : Program<'info, System>
+}
+
+#[derive(Accounts)]
+#[instruction(title: String)]
+pub struct UpdateMovieReview<'info> {
+    #[account(
+        mut,
+        seeds = [title.as_bytes(), initializer.key().as_ref()],
+        bump,
+        realloc = DISCRIMINATOR + MovieAccountState::INIT_SPACE,
+        realloc::payer = initializer,
+        realloc::zero = true
+    )]
+    pub movie_review : Account<'info, MovieAccountState>,
+    #[account(mut)]
+    pub initializer: Signer<'info>,
+    pub system_program: Program<'info, System>
+}
+
+#[derive(Accounts)]
+#[instruction(title: String)]
+pub struct DeleteMovieReview<'info> {
+    #[account(
+        mut,
+        seeds = [title.as_bytes(), initializer.key().as_ref()],
+        bump,
+        close = initializer
+    )]
+    pub movie_review : Account<'info, MovieAccountState>,
+    
+    #[account(mut)]
+    pub initializer : Signer<'info>,
+    pub system_program: Program<'info, System>
 }
 
 #[error_code]
