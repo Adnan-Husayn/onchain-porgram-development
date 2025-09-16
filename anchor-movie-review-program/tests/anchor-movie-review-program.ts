@@ -22,19 +22,28 @@ describe("anchor-movie-review-program", () => {
   );
 
   it("Movie review is added`", async () => {
+    const tokenAccount = await getAssociatedTokenAddress(
+      mint,
+      provider.wallet.publicKey,
+    );
 
-    const tx = await program.methods.addMovieReview(
-      movie.title,
-      movie.description,
-      movie.rating
-    ).rpc();
+    const tx = await program.methods
+      .addMovieReview(movie.title, movie.description, movie.rating)
+      .accounts({
+        tokenAccount: tokenAccount,
+      })
+      .rpc();
 
-    const account = await program.account.movieAccountState.fetch(moviePda);
+    const account = await program.account.movieAccountState.fetch(movie_pda);
+    expect(account.title).to.equal(movie.title);
+    expect(account.rating).to.equal(movie.rating);
+    expect(account.description).to.equal(movie.description);
+    expect(account.reviewer.toBase58()).to.equal(
+      provider.wallet.publicKey.toBase58(),
+    );
 
-    expect(movie.title === account.title);
-    expect(movie.rating === account.rating);
-    expect(movie.description === account.description);
-    expect(account.reviewer === provider.wallet.publicKey);
+    const userAta = await getAccount(provider.connection, tokenAccount);
+    expect(Number(userAta.amount)).to.equal(10 * Math.pow(10, 6));
   });
 
   it("Movie review is updated`", async () => {
@@ -57,5 +66,9 @@ describe("anchor-movie-review-program", () => {
 
   it("Deletes a movie review", async () => {
     const tx = await program.methods.deleteMovieReview(movie.title).rpc()
-   });
+  });
+
+  it("Initializes the reward token", async () => {
+    const tx = await program.methods.initializeTokenMint().rpc();
+  });
 });
